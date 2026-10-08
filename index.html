@@ -159,18 +159,28 @@
 
     saveBtn.addEventListener('click', async () => {
       statusText.innerText = "ENCODING_RAW_RIFF_WAV_HEADER...";
-      
       const finalWavBuffer = exportWavFileBytes(rawAudioBuffersList);
       
-      statusText.innerText = "INITIALIZING_SAVE_DIALOG...";
-      const outcome = await window.recorderAPI.saveFile(finalWavBuffer);
-      
-      if (outcome.success) {
-        statusText.innerText = `SUCCESS // LOSSLESS_WAV_WRITTEN_TO: ${outcome.path}`;
+      const blob = new Blob([finalWavBuffer], { type: 'audio/wav' });
+
+      // Check if running inside Electron desktop container
+      if (window.recorderAPI && window.recorderAPI.saveFile) {
+        statusText.innerText = "INITIALIZING_DESKTOP_SAVE_DIALOG...";
+        const buffer = await blob.arrayBuffer();
+        const result = await window.recorderAPI.saveFile(buffer);
+        if (result.success) statusText.innerText = `SUCCESS // WRITTEN_TO: ${result.path}`;
       } else {
-        statusText.innerText = "EXPORT_ABORTED";
+        // WEB FALLBACK: Natively download file directly via the browser engine
+        statusText.innerText = "SUCCESS // DOWNLOADING_WAV_VIA_BROWSER...";
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(blob);
+        downloadLink.download = 'my-keyboard-jam.wav';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
       }
     });
+
 
     // Custom lightweight binary byte writer constructing standard 44-byte WAV headers
     function exportWavFileBytes(buffers) {
