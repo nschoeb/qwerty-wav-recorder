@@ -2,187 +2,361 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>QWERTY Keyboard Recorder - WAV Studio</title>
+  <title>Playable Browser Application Simulator</title>
   <link rel="preconnect" href="https://googleapis.com">
   <link rel="preconnect" href="https://gstatic.com" crossorigin>
   <link href="https://googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   
   <style>
     :root {
-      --bg-main: #0d0e12;
-      --panel-bg: #161920;
-      --panel-border: #242936;
-      --accent: #00f2fe;
-      --accent-glow: rgba(0, 242, 254, 0.35);
-      --key-white: #1e222b;
+      --bg-dark: #0f111a;
+      --panel-bg: #161824;
+      --border-color: #242736;
+      --accent-blue: #2563eb;
+      --record-red: #ef4444;
       --text-main: #f8f9fa;
-      --text-muted: #626a7a;
+      --text-muted: #6b7280;
     }
+
     body {
-      font-family: 'JetBrains Mono', monospace; background: var(--bg-main); color: var(--text-main);
-      display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden;
+      font-family: 'JetBrains Mono', monospace;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;        /* Changed from height: 100vh */
+      padding: 20px 0;          /* Added slight top/bottom safety padding */
+      margin: 0;
+      overflow: hidden;
     }
-    h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px 0; text-transform: uppercase; }
-    h1::after { content: ' _'; color: var(--accent); animation: blink 1s infinite; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-    .subtitle { color: var(--text-muted); margin-bottom: 35px; font-size: 0.8rem; }
-    .keyboard-container {
-      background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 24px; border-radius: 12px;
-      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; gap: 10px; margin-bottom: 35px;
+
+
+    /* Core Simulator Frame Wrapper */
+    .simulator-container {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 100%;              /* Changed from 900px */
+      max-width: 900px;         /* Added to scale smoothly */
+      box-sizing: border-box;    /* Added to account for inner padding calculations */
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
     }
-    .keyboard-row { display: flex; gap: 10px; }
-    .key {
-      background: var(--key-white); border: 1px solid var(--panel-border); border-bottom: 4px solid #11141a; border-radius: 6px;
-      padding: 20px 0; width: 56px; text-align: center; font-weight: 700; font-size: 1.1rem; color: var(--text-main);
-      box-sizing: border-box; transition: transform 0.05s ease, background 0.05s ease; user-select: none;
+
+
+    /* Top Visualizer Grid Display */
+    .display-panel {
+      background-color: #0b0c16;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      height: 120px;
+      position: relative;
+      margin-bottom: 16px;
     }
-    .key.active {
-      background: #11141a; border-color: var(--accent); border-bottom-width: 1px; transform: translateY(3px); color: var(--accent); box-shadow: 0 0 15px var(--accent-glow);
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px;
+      font-size: 11px;
     }
-    small { display: block; font-size: 0.65rem; color: var(--text-muted); margin-top: 8px; font-weight: 400; }
-    .key.active small { color: var(--accent); opacity: 0.8; }
-    .recorder-panel { background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 20px 40px; border-radius: 12px; text-align: center; min-width: 340px; }
+    .status-indicator { color: #10b981; font-weight: bold; }
+    .status-indicator::before { content: '● '; }
+    .metrics { text-align: right; color: var(--text-muted); }
+    .metrics span { color: var(--text-main); font-weight: bold; }
+
+    /* Moving Visualizer Line Layer */
+    .visualizer-line {
+      position: absolute;
+      bottom: 30px; left: 0; right: 0;
+      height: 2px; background-color: var(--accent-blue);
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
+    }
+    .panel-footer {
+      position: absolute; bottom: 8px; left: 12px; right: 12px;
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-muted);
+    }
+
+    /* Middle Control Bar Configuration */
+    .controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .control-label { font-size: 12px; color: var(--text-muted); }
+    
+    select {
+      background-color: #1f2335; color: var(--text-main);
+      border: 1px solid var(--border-color); border-radius: 6px;
+      padding: 10px 16px; width: 220px; font-family: inherit; font-size: 13px; outline: none;
+    }
+
+    .btn-group { display: flex; gap: 12px; margin-top: 18px; }
     button {
-      font-family: 'JetBrains Mono', monospace; padding: 10px 24px; font-weight: 700; font-size: 0.8rem; border: 1px solid var(--panel-border);
-      border-radius: 6px; cursor: pointer; margin: 0 6px; background: #1e222b; color: var(--text-main); transition: all 0.15s ease; text-transform: uppercase;
+      font-family: inherit; font-size: 13px; font-weight: bold;
+      border: none; border-radius: 20px; padding: 10px 24px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px; transition: opacity 0.1s;
     }
-    button:hover { border-color: var(--text-muted); background: #242936; }
-    #recordBtn.recording { background: #0f1712; border-color: #22c55e; color: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.2); }
-    #saveBtn { display: none; background: #0f131c; border-color: #3b82f6; color: #3b82f6; }
-    #status { margin-top: 14px; color: var(--text-muted); font-size: 0.75rem; }
+    button:hover { opacity: 0.9; }
+    
+    #recordBtn { background-color: var(--record-red); color: white; }
+    #recordBtn.recording { background-color: #10b981; }
+    #saveBtn { background-color: #2e3244; color: var(--text-muted); pointer-events: none; }
+    #saveBtn.ready { background-color: #3b4261; color: white; pointer-events: auto; }
+
+    /* Traditional Piano Key Bed Engineering Layout */
+    .piano-container {
+      background-color: #000; border-radius: 8px; padding: 12px;
+      position: relative; display: flex; justify-content: center;
+    }
+    .white-keys-container { display: flex; gap: 4px; }
+    
+    .key-white {
+      background-color: white; color: #1f2335;
+      width: 70px; height: 240px; border-radius: 0 0 6px 6px;
+      display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+      padding-bottom: 12px; box-sizing: border-box; font-size: 11px; font-weight: bold;
+      position: relative; transition: background-color 0.05s; user-select: none;
+    }
+    .key-white.active { background-color: #e2e8f0; transform: translateY(1px); }
+    .key-white small { color: var(--text-muted); display: block; margin-top: 4px; font-size: 10px; }
+
+    /* Hanging Black Keys Layer Container */
+    .black-keys-container {
+      position: absolute; top: 12px; left: 47px;
+      display: flex; pointer-events: none;
+    }
+    .key-black {
+      background-color: #16171f; color: var(--text-main);
+      width: 44px; height: 140px; border-radius: 0 0 4px 4px;
+      display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+      padding-bottom: 12px; box-sizing: border-box; font-size: 10px;
+      margin-right: 30px; transition: background-color 0.05s; pointer-events: auto; user-select: none;
+    }
+    /* Accurate Piano Step Spacing Layouts */
+    .key-black.gap-right { margin-right: 104px; }
+    .key-black.active { background-color: var(--accent-blue); }
+    .key-black small { color: var(--text-muted); display: block; margin-top: 4px; }
   </style>
 </head>
 <body>
 
-  <h1>QWERTY.WAV</h1>
-  <p class="subtitle">[SYS_STATUS]: LOSSLESS_WAV_DECK</p>
-
-  <div class="keyboard-container">
-    <div class="keyboard-row">
-      <div class="key" id="key-Q">Q<small>C5</small></div>
-      <div class="key" id="key-W">W<small>D5</small></div>
-      <div class="key" id="key-E">E<small>E5</small></div>
-      <div class="key" id="key-R">R<small>F5</small></div>
-      <div class="key" id="key-T">T<small>G5</small></div>
-      <div class="key" id="key-Y">Y<small>A5</small></div>
-      <div class="key" id="key-U">U<small>B5</small></div>
-      <div class="key" id="key-I">I<small>C6</small></div>
+  <div class="simulator-container">
+    
+    <!-- Top Grid Info Panel -->
+    <div class="display-panel">
+      <div class="panel-header">
+        <div class="status-indicator" id="statusText">PIANO MASTER READY</div>
+        <div class="metrics">DURATION: <span id="durationLabel">0.0s</span> &nbsp;&nbsp; FORMAT: <span>WAV 16-BIT</span></div>
+      </div>
+      <div class="visualizer-line"></div>
+      <div class="panel-footer">
+        <div id="activeNotesLabel">Active Notes: None</div>
+        <div>Press QWERTY keys to play live</div>
+      </div>
     </div>
-    <div class="keyboard-row">
-      <div class="key" id="key-A">A<small>C4</small></div>
-      <div class="key" id="key-S">S<small>D4</small></div>
-      <div class="key" id="key-D">D<small>E4</small></div>
-      <div class="key" id="key-F">F<small>F4</small></div>
-      <div class="key" id="key-G">G<small>G4</small></div>
-      <div class="key" id="key-H">H<small>A4</small></div>
-      <div class="key" id="key-J">J<small>B4</small></div>
-      <div class="key" id="key-K">K<small>C5</small></div>
-    </div>
-  </div>
 
-  <div class="recorder-panel">
-    <button id="recordBtn">[REC_START]</button>
-    <button id="saveBtn">[EXPORT_WAV]</button>
-    <div id="status">CONSOLE_IDLE // READY_TO_INPUT</div>
+    <!-- Center Mode Select Deck -->
+    <div class="controls-row">
+      <div class="control-group">
+        <div class="control-label">Instrument Timbre</div>
+        <select id="timbreSelect">
+          <option value="sine">Sine Wave</option>
+          <option value="triangle" selected>Triangle Wave</option>
+          <option value="sawtooth">Sawtooth Wave</option>
+          <option value="square">Square Wave</option>
+        </select>
+      </div>
+
+      <div class="btn-group">
+        <button id="recordBtn">● Record Audio</button>
+        <button id="saveBtn">↑ Export .WAV</button>
+      </div>
+    </div>
+
+    <!-- Layout Framework: Traditional Layered Piano -->
+    <div class="piano-container">
+      
+      <!-- Base Layer: 11 White Natural Keys -->
+      <div class="white-keys-container">
+        <div class="key-white" id="key-A">C4<small>A</small></div>
+        <div class="key-white" id="key-S">D4<small>S</small></div>
+        <div class="key-white" id="key-D">E4<small>D</small></div>
+        <div class="key-white" id="key-F">F4<small>F</small></div>
+        <div class="key-white" id="key-G">G4<small>G</small></div>
+        <div class="key-white" id="key-H">A4<small>H</small></div>
+        <div class="key-white" id="key-J">B4<small>J</small></div>
+        <div class="key-white" id="key-K">C5<small>K</small></div>
+        <div class="key-white" id="key-L">D5<small>L</small></div>
+        <div class="key-white" id="key-SEMICOLON">E5<small>;</small></div>
+        <div class="key-white" id="key-SLASH">F5<small>/</small></div>
+      </div>
+
+      <!-- Overlay Layer: 7 Hanging Accidental Black Keys -->
+      <div class="black-keys-container">
+        <div class="key-black" id="key-W">C#4<small>W</small></div>
+        <div class="key-black gap-right" id="key-E">D#4<small>E</small></div>
+        <div class="key-black" id="key-T">F#4<small>T</small></div>
+        <div class="key-black" id="key-Y">G#4<small>Y</small></div>
+        <div class="key-black gap-right" id="key-U">A#4<small>U</small></div>
+        <div class="key-black" id="key-O">C#5<small>O</small></div>
+        <div class="key-black" id="key-P">D#5<small>P</small></div>
+      </div>
+
+    </div>
+
   </div>
   <script>
-    // Initialize standard studio sampling rates (44.1kHz)
+    // 1. Core Polyphonic Audio Context Routing
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    const recorderNode = audioCtx.createScriptProcessor(4096, 1, 1);
     
+    // Explicit mapping to match the visual key arrangement layout perfectly
     const noteFrequencies = {
-      'a': 261.63, 's': 293.66, 'd': 329.63, 'f': 349.23, 
-      'g': 392.00, 'h': 440.00, 'j': 493.88, 'k': 523.25,
-      'q': 523.25, 'w': 587.33, 'e': 659.25, 'r': 698.46, 
-      't': 783.99, 'y': 880.00, 'u': 987.77, 'i': 1046.50
+      'a': { freq: 261.63, name: 'C4', id: 'key-A' },
+      'w': { freq: 277.18, name: 'C#4', id: 'key-W' },
+      's': { freq: 293.66, name: 'D4', id: 'key-S' },
+      'e': { freq: 311.13, name: 'D#4', id: 'key-E' },
+      'd': { freq: 329.63, name: 'E4', id: 'key-D' },
+      'f': { freq: 349.23, name: 'F4', id: 'key-F' },
+      't': { freq: 369.99, name: 'F#4', id: 'key-T' },
+      'g': { freq: 392.00, name: 'G4', id: 'key-G' },
+      'y': { freq: 415.30, name: 'G#4', id: 'key-Y' },
+      'h': { freq: 440.00, name: 'A4', id: 'key-H' },
+      'u': { freq: 466.16, name: 'A#4', id: 'key-U' },
+      'j': { freq: 493.88, name: 'B4', id: 'key-J' },
+      'k': { freq: 523.25, name: 'C5', id: 'key-K' },
+      'o': { freq: 554.37, name: 'C#5', id: 'key-O' },
+      'l': { freq: 587.33, name: 'D5', id: 'key-L' },
+      'p': { freq: 622.25, name: 'D#5', id: 'key-P' },
+      ';': { freq: 659.25, name: 'E5', id: 'key-SEMICOLON' },
+      '/': { freq: 698.46, name: 'F5', id: 'key-SLASH' }
     };
 
-    let activeOscillator = null;
-
-    // Create a Web Audio script processing loop node to intercept actual float data arrays
-    const recorderNode = audioCtx.createScriptProcessor(4096, 1, 1);
+    // Tracking objects for multi-key polyphony
+    let activeOscillators = {};
     let rawAudioBuffersList = [];
     let isRecording = false;
+    let recordingStartTime = 0;
+    let timerInterval = null;
 
-    // Track active float sample streams whenever recording state is active
-    recorderNode.onaudioprocess = (audioProcessingEvent) => {
+    // Intercept data buffers whenever recording state is active
+    recorderNode.onaudioprocess = (e) => {
       if (!isRecording) return;
-      const inputBufferChannelData = audioProcessingEvent.inputBuffer.getChannelData(0);
-      // Deep clone raw numerical floats safely
+      const inputBufferChannelData = e.inputBuffer.getChannelData(0);
       rawAudioBuffersList.push(new Float32Array(inputBufferChannelData));
     };
+    recorderNode.connect(audioCtx.destination);
 
-    function playTone(frequency) {
-      if (activeOscillator) activeOscillator.stop();
-      
+    // 2. Synthesizer Voice Management
+    function startNote(keyChar) {
+      if (activeOscillators[keyChar]) return; // Avoid key-repeat re-triggering stalls
+
+      const note = noteFrequencies[keyChar];
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
-      
-      oscillator.type = 'triangle'; 
-      oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-      
-      gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.7);
+
+      // Read dynamic timbre configuration dropdown selection state smoothly
+      const currentWaveform = document.getElementById('timbreSelect').value;
+      oscillator.type = currentWaveform;
+      oscillator.frequency.setValueAtTime(note.freq, audioCtx.currentTime);
+
+      // Clean exponential attack/decay voice envelope configuration
+      gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
       
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
-      
-      // Also bridge sound straight into our internal float recording node matrix
       gainNode.connect(recorderNode);
-      
+
       oscillator.start();
-      activeOscillator = oscillator;
+      activeOscillators[keyChar] = { osc: oscillator, gain: gainNode };
+      
+      updateActiveNotesDisplay();
     }
 
-    // Connect standard background analyzer node chains
-    recorderNode.connect(audioCtx.destination);
+    function stopNote(keyChar) {
+      if (!activeOscillators[keyChar]) return;
 
+      const voice = activeOscillators[keyChar];
+      // Clean musical release decay curves
+      try {
+        voice.gain.gain.setValueAtTime(voice.gain.gain.value, audioCtx.currentTime);
+        voice.gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+        voice.osc.stop(audioCtx.currentTime + 0.16);
+      } catch (e) {
+        voice.osc.stop();
+      }
+
+      delete activeOscillators[keyChar];
+      updateActiveNotesDisplay();
+    }
+
+    function updateActiveNotesDisplay() {
+      const activeNames = Object.keys(activeOscillators).map(k => noteFrequencies[k].name);
+      document.getElementById('activeNotesLabel').innerText = activeNames.length > 0 
+        ? `Active Notes: ${activeNames.join(', ')}` 
+        : "Active Notes: None";
+    }
+
+    // 3. UI Interactions & Recording Automations
     const recordBtn = document.getElementById('recordBtn');
     const saveBtn = document.getElementById('saveBtn');
-    const statusText = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const durationLabel = document.getElementById('durationLabel');
 
     recordBtn.addEventListener('click', () => {
       if (!isRecording) {
+        // Reset recording session parameters
         rawAudioBuffersList = [];
         isRecording = true;
-        recordBtn.innerText = "[REC_STOP]";
+        recordingStartTime = Date.now();
+        
+        recordBtn.innerText = "■ Stop Session";
         recordBtn.classList.add('recording');
-        statusText.innerText = "CAPTURING_LOSSLESS_PCM // ACTIVE_SESSION...";
-        saveBtn.style.display = 'none';
+        statusText.innerText = "RECORDING RUNTIME LOG ACTIVE";
+        saveBtn.classList.remove('ready');
+
+        timerInterval = setInterval(() => {
+          const elapsedSecs = ((Date.now() - recordingStartTime) / 1000).toFixed(1);
+          durationLabel.innerText = `${elapsedSecs}s`;
+        }, 100);
       } else {
         isRecording = false;
-        recordBtn.innerText = "[REC_START]";
+        clearInterval(timerInterval);
+        recordBtn.innerText = "● Record Audio";
         recordBtn.classList.remove('recording');
-        statusText.innerText = "PCM_STREAM_COMPLETED // WAV_READY";
-        saveBtn.style.display = 'inline-block';
+        statusText.innerText = "PCM CAPTURE MASTER READY";
+        saveBtn.classList.add('ready');
       }
     });
 
     saveBtn.addEventListener('click', async () => {
-      statusText.innerText = "ENCODING_RAW_RIFF_WAV_HEADER...";
-      const finalWavBuffer = exportWavFileBytes(rawAudioBuffersList);
+      if (!saveBtn.classList.contains('ready')) return;
+      statusText.innerText = "ENCODING BINARY RIFF WAV DATA...";
       
+      const finalWavBuffer = exportWavFileBytes(rawAudioBuffersList);
       const blob = new Blob([finalWavBuffer], { type: 'audio/wav' });
 
-      // Check if running inside Electron desktop container
       if (window.recorderAPI && window.recorderAPI.saveFile) {
-        statusText.innerText = "INITIALIZING_DESKTOP_SAVE_DIALOG...";
         const buffer = await blob.arrayBuffer();
         const result = await window.recorderAPI.saveFile(buffer);
-        if (result.success) statusText.innerText = `SUCCESS // WRITTEN_TO: ${result.path}`;
+        if (result.success) statusText.innerText = "DESKTOP WRITE COMPLETE";
       } else {
-        // WEB FALLBACK: Natively download file directly via the browser engine
-        statusText.innerText = "SUCCESS // DOWNLOADING_WAV_VIA_BROWSER...";
         const downloadLink = document.createElement('a');
         downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = 'my-keyboard-jam.wav';
+        downloadLink.download = 'piano-master-session.wav';
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
+        statusText.innerText = "BROWSER DEPLOYMENT EXPORT COMPLETE";
       }
     });
 
-
-    // Custom lightweight binary byte writer constructing standard 44-byte WAV headers
+    // 4. Manual 44-Byte RIFF WAV File Generation Engine
     function exportWavFileBytes(buffers) {
       let totalLength = 0;
       for (let b of buffers) { totalLength += b.length; }
@@ -190,26 +364,20 @@
       const fileResultBuffer = new ArrayBuffer(44 + totalLength * 2);
       const view = new DataView(fileResultBuffer);
       
-      // RIFF identifier chunk descriptor
       writeString(view, 0, 'RIFF');
       view.setUint32(4, 36 + totalLength * 2, true);
       writeString(view, 8, 'WAVE');
-      
-      // Sub-chunk fmt section descriptors
       writeString(view, 12, 'fmt ');
       view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true); // Linear PCM compression allocation
-      view.setUint16(22, 1, true); // Mono sound stream parameters
-      view.setUint32(24, 44100, true); // Sample frequencies (44.1kHz)
-      view.setUint32(28, 44100 * 2, true); // Intermediary continuous frame rates
+      view.setUint16(20, 1, true); // Linear PCM bit assignment
+      view.setUint16(22, 1, true); // Mono stream sound layout channel configuration
+      view.setUint32(24, 44100, true); // 44.1kHz standard studio rate
+      view.setUint32(28, 44100 * 2, true);
       view.setUint16(32, 2, true);
-      view.setUint16(34, 16, true); // Quantization parameters (16-bit depth arrays)
-      
-      // Main audio data section block
+      view.setUint16(34, 16, true); // 16-bit depth parsing parameters
       writeString(view, 36, 'data');
       view.setUint32(40, totalLength * 2, true);
       
-      // Stream continuous float matrix conversions straight down to uncompressed 16-bit signed shorts
       let offset = 44;
       for (let i = 0; i < buffers.length; i++) {
         for (let j = 0; j < buffers[i].length; j++) {
@@ -227,17 +395,25 @@
       }
     }
 
-    window.addEventListener('keydown', (event) => {
-      const rawKey = event.key.toLowerCase();
-      const targetedId = `key-${rawKey.toUpperCase()}`;
+    // 5. Hardware Input Interception Routing
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return; // Prevent hardware engine latching delays
+      const keyChar = e.key.toLowerCase();
+      if (noteFrequencies[keyChar]) {
+        const targetId = noteFrequencies[keyChar].id;
+        const visualElement = document.getElementById(targetId);
+        if (visualElement) visualElement.classList.add('active');
+        startNote(keyChar);
+      }
+    });
 
-      if (noteFrequencies[rawKey]) {
-        const visualKey = document.getElementById(targetedId);
-        if (visualKey) {
-          playTone(noteFrequencies[rawKey]);
-          visualKey.classList.add('active');
-          setTimeout(() => visualKey.classList.remove('active'), 120);
-        }
+    window.addEventListener('keyup', (e) => {
+      const keyChar = e.key.toLowerCase();
+      if (noteFrequencies[keyChar]) {
+        const targetId = noteFrequencies[keyChar].id;
+        const visualElement = document.getElementById(targetId);
+        if (visualElement) visualElement.classList.remove('active');
+        stopNote(keyChar);
       }
     });
   </script>

@@ -6,8 +6,9 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 960,
+    height: 620,        // Increased to 620 to provide plenty of vertical room
+    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -15,8 +16,14 @@ function createWindow() {
     }
   });
 
+  // Hides the standard Windows top menu bar for a clean dashboard look
+  mainWindow.setMenu(null); 
+
   mainWindow.loadFile('index.html');
+  return mainWindow;
 }
+
+
 
 app.whenReady().then(createWindow);
 
