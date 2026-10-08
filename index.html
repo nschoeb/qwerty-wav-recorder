@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QWERTY Keyboard Recorder - WAV Studio</title>
+  <link rel="preconnect" href="https://googleapis.com">
+  <link rel="preconnect" href="https://gstatic.com" crossorigin>
+  <link href="https://googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #0d0e12;
+      --panel-bg: #161920;
+      --panel-border: #242936;
+      --accent: #00f2fe;
+      --accent-glow: rgba(0, 242, 254, 0.35);
+      --key-white: #1e222b;
+      --text-main: #f8f9fa;
+      --text-muted: #626a7a;
+    }
+    body {
+      font-family: 'JetBrains Mono', monospace; background: var(--bg-main); color: var(--text-main);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden;
+    }
+    h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px 0; text-transform: uppercase; }
+    h1::after { content: ' _'; color: var(--accent); animation: blink 1s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .subtitle { color: var(--text-muted); margin-bottom: 35px; font-size: 0.8rem; }
+    .keyboard-container {
+      background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 24px; border-radius: 12px;
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; gap: 10px; margin-bottom: 35px;
+    }
+    .keyboard-row { display: flex; gap: 10px; }
+    .key {
+      background: var(--key-white); border: 1px solid var(--panel-border); border-bottom: 4px solid #11141a; border-radius: 6px;
+      padding: 20px 0; width: 56px; text-align: center; font-weight: 700; font-size: 1.1rem; color: var(--text-main);
+      box-sizing: border-box; transition: transform 0.05s ease, background 0.05s ease; user-select: none;
+    }
+    .key.active {
+      background: #11141a; border-color: var(--accent); border-bottom-width: 1px; transform: translateY(3px); color: var(--accent); box-shadow: 0 0 15px var(--accent-glow);
+    }
+    small { display: block; font-size: 0.65rem; color: var(--text-muted); margin-top: 8px; font-weight: 400; }
+    .key.active small { color: var(--accent); opacity: 0.8; }
+    .recorder-panel { background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 20px 40px; border-radius: 12px; text-align: center; min-width: 340px; }
+    button {
+      font-family: 'JetBrains Mono', monospace; padding: 10px 24px; font-weight: 700; font-size: 0.8rem; border: 1px solid var(--panel-border);
+      border-radius: 6px; cursor: pointer; margin: 0 6px; background: #1e222b; color: var(--text-main); transition: all 0.15s ease; text-transform: uppercase;
+    }
+    button:hover { border-color: var(--text-muted); background: #242936; }
+    #recordBtn.recording { background: #0f1712; border-color: #22c55e; color: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.2); }
+    #saveBtn { display: none; background: #0f131c; border-color: #3b82f6; color: #3b82f6; }
+    #status { margin-top: 14px; color: var(--text-muted); font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+
+  <h1>QWERTY.WAV</h1>
+  <p class="subtitle">[SYS_STATUS]: LOSSLESS_WAV_DECK</p>
+
+  <div class="keyboard-container">
+    <div class="keyboard-row">
+      <div class="key" id="key-Q">Q<small>C5</small></div>
+      <div class="key" id="key-W">W<small>D5</small></div>
+      <div class="key" id="key-E">E<small>E5</small></div>
+      <div class="key" id="key-R">R<small>F5</small></div>
+      <div class="key" id="key-T">T<small>G5</small></div>
+      <div class="key" id="key-Y">Y<small>A5</small></div>
+      <div class="key" id="key-U">U<small>B5</small></div>
+      <div class="key" id="key-I">I<small>C6</small></div>
+    </div>
+    <div class="keyboard-row">
+      <div class="key" id="key-A">A<small>C4</small></div>
+      <div class="key" id="key-S">S<small>D4</small></div>
+      <div class="key" id="key-D">D<small>E4</small></div>
+      <div class="key" id="key-F">F<small>F4</small></div>
+      <div class="key" id="key-G">G<small>G4</small></div>
+      <div class="key" id="key-H">H<small>A4</small></div>
+      <div class="key" id="key-J">J<small>B4</small></div>
+      <div class="key" id="key-K">K<small>C5</small></div>
+    </div>
+  </div>
+
+  <div class="recorder-panel">
+    <button id="recordBtn">[REC_START]</button>
+    <button id="saveBtn">[EXPORT_WAV]</button>
+    <div id="status">CONSOLE_IDLE // READY_TO_INPUT</div>
+  </div>
+  <script>
+    // Initialize standard studio sampling rates (44.1kHz)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    
+    const noteFrequencies = {
+      'a': 261.63, 's': 293.66, 'd': 329.63, 'f': 349.23, 
+      'g': 392.00, 'h': 440.00, 'j': 493.88, 'k': 523.25,
+      'q': 523.25, 'w': 587.33, 'e': 659.25, 'r': 698.46, 
+      't': 783.99, 'y': 880.00, 'u': 987.77, 'i': 1046.50
+    };
+
+    let activeOscillator = null;
+
+    // Create a Web Audio script processing loop node to intercept actual float data arrays
+    const recorderNode = audioCtx.createScriptProcessor(4096, 1, 1);
+    let rawAudioBuffersList = [];
+    let isRecording = false;
+
+    // Track active float sample streams whenever recording state is active
+    recorderNode.onaudioprocess = (audioProcessingEvent) => {
+      if (!isRecording) return;
+      const inputBufferChannelData = audioProcessingEvent.inputBuffer.getChannelData(0);
+      // Deep clone raw numerical floats safely
+      rawAudioBuffersList.push(new Float32Array(inputBufferChannelData));
+    };
+
+    function playTone(frequency) {
+      if (activeOscillator) activeOscillator.stop();
+      
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.type = 'triangle'; 
+      oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+      
+      gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.7);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      // Also bridge sound straight into our internal float recording node matrix
+      gainNode.connect(recorderNode);
+      
+      oscillator.start();
+      activeOscillator = oscillator;
+    }
+
+    // Connect standard background analyzer node chains
+    recorderNode.connect(audioCtx.destination);
+
+    const recordBtn = document.getElementById('recordBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const statusText = document.getElementById('status');
+
+    recordBtn.addEventListener('click', () => {
+      if (!isRecording) {
+        rawAudioBuffersList = [];
+        isRecording = true;
+        recordBtn.innerText = "[REC_STOP]";
+        recordBtn.classList.add('recording');
+        statusText.innerText = "CAPTURING_LOSSLESS_PCM // ACTIVE_SESSION...";
+        saveBtn.style.display = 'none';
+      } else {
+        isRecording = false;
+        recordBtn.innerText = "[REC_START]";
+        recordBtn.classList.remove('recording');
+        statusText.innerText = "PCM_STREAM_COMPLETED // WAV_READY";
+        saveBtn.style.display = 'inline-block';
+      }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      statusText.innerText = "ENCODING_RAW_RIFF_WAV_HEADER...";
+      
+      const finalWavBuffer = exportWavFileBytes(rawAudioBuffersList);
+      
+      statusText.innerText = "INITIALIZING_SAVE_DIALOG...";
+      const outcome = await window.recorderAPI.saveFile(finalWavBuffer);
+      
+      if (outcome.success) {
+        statusText.innerText = `SUCCESS // LOSSLESS_WAV_WRITTEN_TO: ${outcome.path}`;
+      } else {
+        statusText.innerText = "EXPORT_ABORTED";
+      }
+    });
+
+    // Custom lightweight binary byte writer constructing standard 44-byte WAV headers
+    function exportWavFileBytes(buffers) {
+      let totalLength = 0;
+      for (let b of buffers) { totalLength += b.length; }
+      
+      const fileResultBuffer = new ArrayBuffer(44 + totalLength * 2);
+      const view = new DataView(fileResultBuffer);
+      
+      // RIFF identifier chunk descriptor
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + totalLength * 2, true);
+      writeString(view, 8, 'WAVE');
+      
+      // Sub-chunk fmt section descriptors
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // Linear PCM compression allocation
+      view.setUint16(22, 1, true); // Mono sound stream parameters
+      view.setUint32(24, 44100, true); // Sample frequencies (44.1kHz)
+      view.setUint32(28, 44100 * 2, true); // Intermediary continuous frame rates
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true); // Quantization parameters (16-bit depth arrays)
+      
+      // Main audio data section block
+      writeString(view, 36, 'data');
+      view.setUint32(40, totalLength * 2, true);
+      
+      // Stream continuous float matrix conversions straight down to uncompressed 16-bit signed shorts
+      let offset = 44;
+      for (let i = 0; i < buffers.length; i++) {
+        for (let j = 0; j < buffers[i].length; j++) {
+          let s = Math.max(-1, Math.min(1, buffers[i][j]));
+          view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+          offset += 2;
+        }
+      }
+      return fileResultBuffer;
+    }
+
+    function writeString(view, offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    }
+
+    window.addEventListener('keydown', (event) => {
+      const rawKey = event.key.toLowerCase();
+      const targetedId = `key-${rawKey.toUpperCase()}`;
+
+      if (noteFrequencies[rawKey]) {
+        const visualKey = document.getElementById(targetedId);
+        if (visualKey) {
+          playTone(noteFrequencies[rawKey]);
+          visualKey.classList.add('active');
+          setTimeout(() => visualKey.classList.remove('active'), 120);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
